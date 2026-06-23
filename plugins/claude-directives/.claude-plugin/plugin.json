@@ -1,0 +1,13 @@
+{
+  "name": "claude-directives",
+  "description": "Write instructions Claude reads, and keep them secure.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mary"
+  },
+  "keywords": [
+    "prompting",
+    "skills",
+    "security"
+  ]
+}
