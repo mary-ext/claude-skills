@@ -95,6 +95,8 @@ no further tool calls**. Do not use Monitor, TaskOutput, Read, sleep, or any oth
 the oracle — the system delivers the result to you automatically as a notification when it finishes.
 Polling just returns empty output and wastes tokens.
 
+Don't pipe the output to `head` or `tail` — capture the whole response.
+
 **Do not modify any files while the oracle is running** — not the attached files, not files adjacent
 to them, and not files related to the question. The oracle explores freely: it reads attached files,
 follows imports, inspects siblings in the same directory, and traces call chains. Any file it might
