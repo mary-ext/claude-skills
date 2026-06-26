@@ -1,22 +1,11 @@
 ---
 name: oracle
 description: >
-  Instructions for invoking the oracle — an independent advisor you shell out to for a second
-  opinion. This skill itself does nothing; it documents the bash commands (`ask.sh`, `review.sh`)
-  you must run to actually consult the oracle. Read it when planning complex changes, debugging
-  across multiple files, making architecture decisions, reviewing your own work, or when a
+  An independent advisor you shell out to for a second opinion. Use when planning complex changes,
+  debugging across multiple files, making architecture decisions, reviewing your own work, or when a
   different perspective would help.
 user-invocable: false
 ---
-
-# Oracle
-
-This skill is **documentation only** — reading it does not summon the oracle. To actually consult
-the oracle, you must run one of the bash scripts described below (`ask.sh` or `review.sh`) via the
-Bash tool. The skill exists to tell you how.
-
-The oracle itself is an independent advisor you shell out to for a second opinion. Use it to plan,
-review your own work, understand existing code behavior, and debug problems.
 
 ## When to consult the oracle
 
@@ -26,7 +15,7 @@ review your own work, understand existing code behavior, and debug problems.
 - Reviewing code for correctness, security, or missed edge cases
 - When you're stuck or going in circles on a problem
 
-## When NOT to consult the oracle
+## When not to consult the oracle
 
 - Simple file reads, searches, or straightforward code changes — just do them yourself
 - Questions you can answer confidently from context you already have
@@ -34,8 +23,8 @@ review your own work, understand existing code behavior, and debug problems.
 
 ## How to invoke
 
-**Always run in the background.** The oracle takes time to reason — use `run_in_background: true` on
-the Bash call so you can continue working while it thinks. You'll be notified automatically when it
+Always run in the background. The oracle takes time to reason, use `run_in_background: true` on the
+Bash call so you can continue working while it thinks. You'll be notified automatically when it
 completes.
 
 ### General advice (`ask.sh`)
@@ -97,8 +86,8 @@ Polling just returns empty output and wastes tokens.
 
 Don't pipe the output to `head` or `tail` — capture the whole response.
 
-**Do not modify any files while the oracle is running** — not the attached files, not files adjacent
-to them, and not files related to the question. The oracle explores freely: it reads attached files,
+Don't modify any files while the oracle is running. Not the attached files, not files adjacent to
+them, and not files related to the question. The oracle explores freely: it reads attached files,
 follows imports, inspects siblings in the same directory, and traces call chains. Any file it might
 touch is off-limits until it finishes. Editing mid-run corrupts its view of the codebase and makes
 its advice unreliable. If you have nothing unrelated to work on, stop and wait.
