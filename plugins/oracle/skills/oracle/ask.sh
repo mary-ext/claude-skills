@@ -55,7 +55,7 @@ echo "$FULL_PROMPT" | mise exec codex -- codex exec \
   --skip-git-repo-check \
   --ephemeral \
   -c "model_instructions_file=\"${SCRIPT_DIR}/system-prompt.md\"" \
-  -c 'model_reasoning_effort="high"' \
+  -c 'model_reasoning_effort="xhigh"' \
   -c 'web_search="live"' \
   -o "$OUTFILE" \
   - >/dev/null 2>"$ERRFILE" || rc=$?
