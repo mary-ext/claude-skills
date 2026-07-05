@@ -42,9 +42,10 @@ if [ ${#FILES[@]} -gt 0 ]; then
 "
 fi
 
-OUTFILE=$(mktemp /tmp/codex-opinion-XXXXXX.md)
-ERRFILE=$(mktemp /tmp/codex-opinion-err-XXXXXX.log)
-trap 'rm -f "$OUTFILE" "$ERRFILE"' EXIT
+TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codex-opinion-XXXXXX")
+trap 'rm -rf "$TMP_DIR"' EXIT
+OUTFILE="$TMP_DIR/opinion.md"
+ERRFILE="$TMP_DIR/err.log"
 
 WORKDIR=$(pwd)
 

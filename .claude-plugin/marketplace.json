@@ -16,7 +16,7 @@
       "name": "oracle",
       "description": "Independent second-opinion advisor.",
       "source": "./plugins/oracle",
-      "version": "1.0.3"
+      "version": "1.0.4"
     },
     {
       "name": "playwriter",
