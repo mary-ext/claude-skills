@@ -47,8 +47,6 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 OUTFILE="$TMP_DIR/opinion.md"
 ERRFILE="$TMP_DIR/err.log"
 
-WORKDIR=$(pwd)
-
 rc=0
 echo "$FULL_PROMPT" | mise exec codex -- codex exec \
   --full-auto \
@@ -60,12 +58,6 @@ echo "$FULL_PROMPT" | mise exec codex -- codex exec \
   -c 'web_search="live"' \
   -o "$OUTFILE" \
   - >/dev/null 2>"$ERRFILE" || rc=$?
-
-# Work around Codex CLI ≥0.118 sandbox bug that leaves an empty .codex file
-# in the project root (openai/codex#16088). -f excludes directories.
-if [ -f "$WORKDIR/.codex" ] && [ ! -s "$WORKDIR/.codex" ]; then
-  rm -f "$WORKDIR/.codex"
-fi
 
 if [ $rc -ne 0 ]; then
   echo "Error: codex exec failed (exit $rc)" >&2
