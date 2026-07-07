@@ -1,0 +1,9 @@
+{
+	"name": "bash-guard",
+	"description": "Block Bash commands that truncate output or detach processes.",
+	"version": "1.0.0",
+	"author": {
+		"name": "Mary"
+	},
+	"keywords": ["hook", "bash", "guard", "output", "background"]
+}
