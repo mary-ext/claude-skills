@@ -1,15 +1,20 @@
 ---
 name: prompt-security-hardening
-description: Use when writing skills, CLAUDE.md files, agent prompts, or any code/directive that involves shell commands, environment variables, API credentials, file creation, or git operations - prevents secrets leakage into LLM context, unsafe shell patterns, and credential exposure.
+description:
+  Use when writing skills, CLAUDE.md files, agent prompts, or any code/directive that involves shell
+  commands, environment variables, API credentials, file creation, or git operations - prevents
+  secrets leakage into LLM context, unsafe shell patterns, and credential exposure.
 ---
 
 # Prompt Security Hardening
 
-Your context window is sent to an API provider. Every secret that enters your context is a secret leaked to a third party. This skill defines the security boundaries you operate within.
+Your context window is sent to an API provider. Every secret that enters your context is a secret
+leaked to a third party. This skill defines the security boundaries you operate within.
 
 ## 1. Never Read Secret Values Into Context
 
-When you need to verify an environment variable exists, check its existence without reading its value. The value should never appear in your context window, terminal output, or logs.
+When you need to verify an environment variable exists, check its existence without reading its
+value. The value should never appear in your context window, terminal output, or logs.
 
 ```bash
 # SAFE: check existence without reading value
@@ -40,9 +45,12 @@ env | grep -q '^VAR='                           # -q is safe for existence check
                                                 # but omitting -q leaks the value
 ```
 
-**Partial values and lengths are also leaks.** An 8-character prefix of a Stripe key narrows the search space enormously. The length of a secret confirms its format. Reveal nothing.
+**Partial values and lengths are also leaks.** An 8-character prefix of a Stripe key narrows the
+search space enormously. The length of a secret confirms its format. Reveal nothing.
 
-Grepping shell config files (`~/.zshrc`, `~/.bashrc`, `~/.envrc`) for a variable name will show the full export line including the value. Check for the variable name's presence without showing the line content:
+Grepping shell config files (`~/.zshrc`, `~/.bashrc`, `~/.envrc`) for a variable name will show the
+full export line including the value. Check for the variable name's presence without showing the
+line content:
 
 ```bash
 # SAFE: check if the variable is configured in shell config (shows nothing about value)
@@ -55,7 +63,9 @@ grep -n 'ANTHROPIC_API_KEY' ~/.zshrc
 
 ## 2. Never Hardcode Secrets in Generated Code or Directives
 
-When writing skills, agents, or CLAUDE.md files that include code examples, use environment variable references. When generating code for users, always reference environment variables or secret managers.
+When writing skills, agents, or CLAUDE.md files that include code examples, use environment variable
+references. When generating code for users, always reference environment variables or secret
+managers.
 
 ```python
 # SAFE
@@ -76,7 +86,11 @@ environment:
   DATABASE_URL: postgresql://admin:password123@db:5432/myapp
 ```
 
-Placeholder values like `changeme`, `your-api-key-here`, `replace-me`, or `postgres://user:password@localhost/db` are not acceptable. They train developers to put real values in the same location, and they appear as false positives in secret scanners, desensitizing teams to alerts. Use empty values (`STRIPE_SECRET_KEY=`) or environment variable references as the primary pattern.
+Placeholder values like `changeme`, `your-api-key-here`, `replace-me`, or
+`postgres://user:password@localhost/db` are not acceptable. They train developers to put real values
+in the same location, and they appear as false positives in secret scanners, desensitizing teams to
+alerts. Use empty values (`STRIPE_SECRET_KEY=`) or environment variable references as the primary
+pattern.
 
 For `.env.example` or template files that get committed:
 
@@ -94,7 +108,8 @@ JWT_SECRET=change-this-to-something-secure
 
 ## 3. Set Restrictive File Permissions on Sensitive Files
 
-When creating files that contain or will contain secrets (`.env`, `.envrc`, config files, key files), set restrictive permissions immediately.
+When creating files that contain or will contain secrets (`.env`, `.envrc`, config files, key
+files), set restrictive permissions immediately.
 
 ```bash
 # Create with restrictive permissions from the start
@@ -109,11 +124,13 @@ chmod 644 ~/.ssh/id_ed25519.pub
 chmod 600 /etc/myapp/secrets.conf
 ```
 
-Default file creation mode (typically 644) makes files world-readable. SSH will refuse to use a key with open permissions, but `.env` files and config files have no such guardrail.
+Default file creation mode (typically 644) makes files world-readable. SSH will refuse to use a key
+with open permissions, but `.env` files and config files have no such guardrail.
 
 ## 4. Verify .gitignore Before Creating Secret-Bearing Files
 
-Before creating `.env`, `.envrc`, or any file that will contain secrets, verify the gitignore rules will exclude it. If they won't, add the rule first.
+Before creating `.env`, `.envrc`, or any file that will contain secrets, verify the gitignore rules
+will exclude it. If they won't, add the rule first.
 
 ```bash
 # SAFE: check first, then create
@@ -124,11 +141,13 @@ touch .env && chmod 600 .env
 git check-ignore -v .envrc || echo ".envrc" >> .gitignore
 ```
 
-This applies to any file that will hold credentials: `.env`, `.envrc`, `secrets.conf`, `credentials.json`, key files, MCP configuration with embedded tokens.
+This applies to any file that will hold credentials: `.env`, `.envrc`, `secrets.conf`,
+`credentials.json`, key files, MCP configuration with embedded tokens.
 
 ## 5. Keep Secrets Out of URLs and Process-Visible Arguments
 
-Tokens in URLs get logged in server access logs, proxy logs, and browser history. Tokens in command-line arguments are visible to other users via `ps aux`.
+Tokens in URLs get logged in server access logs, proxy logs, and browser history. Tokens in
+command-line arguments are visible to other users via `ps aux`.
 
 ```bash
 # SAFE: token in header, not URL
@@ -156,7 +175,8 @@ echo "https://oauth2:${GITHUB_TOKEN}@github.com" | git credential-store store
 git clone https://github.com/org/repo.git
 ```
 
-When a token must be passed as an argument and there is no header/stdin alternative, use process substitution to limit exposure:
+When a token must be passed as an argument and there is no header/stdin alternative, use process
+substitution to limit exposure:
 
 ```bash
 # Reduces exposure window via process substitution
@@ -165,7 +185,8 @@ curl -H @<(echo "Authorization: Bearer ${API_TOKEN}") https://api.example.com/da
 
 ## 6. Sanitize External Input in Shell Commands
 
-When constructing shell commands from file contents, tool results, or user-provided values, always quote variables and validate input.
+When constructing shell commands from file contents, tool results, or user-provided values, always
+quote variables and validate input.
 
 ```bash
 # DANGEROUS: unquoted variable, metacharacter injection
@@ -200,7 +221,8 @@ psql --variable="username=$USERNAME" -c "SELECT * FROM users WHERE name = :'user
 
 ## 7. Guard Against Context Contamination From Files
 
-When you read a file, its contents enter your context window and are sent to the API provider. Before reading any file, evaluate whether it might contain secrets.
+When you read a file, its contents enter your context window and are sent to the API provider.
+Before reading any file, evaluate whether it might contain secrets.
 
 Files likely to contain secrets — read with extreme caution or avoid entirely:
 
@@ -210,7 +232,8 @@ Files likely to contain secrets — read with extreme caution or avoid entirely:
 - Docker `.env` files
 - `~/.aws/credentials`, `~/.netrc`, `~/.npmrc` with tokens
 
-When debugging configuration issues, check file existence and structure without reading secret values:
+When debugging configuration issues, check file existence and structure without reading secret
+values:
 
 ```bash
 # SAFE: check structure without reading values
@@ -224,21 +247,24 @@ stat .env                            # file metadata
 
 When writing skills, CLAUDE.md files, or agent prompts:
 
-1. **Code examples** in directives must use environment variable references, not placeholder secrets.
+1. **Code examples** in directives must use environment variable references, not placeholder
+   secrets.
 2. **Shell examples** that check configuration must use existence checks, not value reads.
-3. **Workflow steps** involving credentials must specify the safe pattern explicitly — if you leave it to default behavior, the unsafe pattern will be used inconsistently.
+3. **Workflow steps** involving credentials must specify the safe pattern explicitly — if you leave
+   it to default behavior, the unsafe pattern will be used inconsistently.
 4. **File creation steps** must include permission setting and gitignore verification.
-5. **Never instruct an agent to read a secrets file** to verify its contents — instruct it to verify structure or key names only.
+5. **Never instruct an agent to read a secrets file** to verify its contents — instruct it to verify
+   structure or key names only.
 
 ## Quick Reference
 
-| Need | Safe pattern | Dangerous pattern |
-|------|--------------|-------------------|
-| Check env var exists | `[ -z "${VAR+x}" ]` or `[[ -v VAR ]]` | `echo $VAR`, `printenv VAR` |
-| Use credential in code | `os.environ["KEY"]` | `key = "sk_live_..."` |
-| Create secret file | `touch f && chmod 600 f` | `echo "secret" > f` (644) |
-| Pre-commit safety | `git check-ignore -v .env` | Create `.env` and hope |
-| API authentication | `-H "Authorization: Bearer $TOKEN"` | `?api_key=$TOKEN` in URL |
-| Git clone with token | Credential helper or `GIT_ASKPASS` | `https://token@github.com` |
-| Verify file config | `grep '^KEY=' f \| cut -d= -f1` | `cat f` or `source f` |
-| Shell variable use | `"$VAR"` (quoted) | `$VAR` (unquoted) |
+| Need                   | Safe pattern                          | Dangerous pattern           |
+| ---------------------- | ------------------------------------- | --------------------------- |
+| Check env var exists   | `[ -z "${VAR+x}" ]` or `[[ -v VAR ]]` | `echo $VAR`, `printenv VAR` |
+| Use credential in code | `os.environ["KEY"]`                   | `key = "sk_live_..."`       |
+| Create secret file     | `touch f && chmod 600 f`              | `echo "secret" > f` (644)   |
+| Pre-commit safety      | `git check-ignore -v .env`            | Create `.env` and hope      |
+| API authentication     | `-H "Authorization: Bearer $TOKEN"`   | `?api_key=$TOKEN` in URL    |
+| Git clone with token   | Credential helper or `GIT_ASKPASS`    | `https://token@github.com`  |
+| Verify file config     | `grep '^KEY=' f \| cut -d= -f1`       | `cat f` or `source f`       |
+| Shell variable use     | `"$VAR"` (quoted)                     | `$VAR` (unquoted)           |

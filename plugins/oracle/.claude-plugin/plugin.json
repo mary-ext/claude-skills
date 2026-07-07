@@ -1,9 +1,9 @@
 {
-  "name": "oracle",
-  "description": "Independent second-opinion advisor.",
-  "version": "1.0.4",
-  "author": {
-    "name": "Mary"
-  },
-  "keywords": ["review", "advisor", "second-opinion"]
+	"name": "oracle",
+	"description": "Independent second-opinion advisor.",
+	"version": "1.0.4",
+	"author": {
+		"name": "Mary"
+	},
+	"keywords": ["review", "advisor", "second-opinion"]
 }

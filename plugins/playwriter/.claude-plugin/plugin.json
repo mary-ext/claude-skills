@@ -1,13 +1,9 @@
 {
-  "name": "playwriter",
-  "description": "Drive your running Chrome via the Playwriter CLI.",
-  "version": "1.0.0",
-  "author": {
-    "name": "Mary"
-  },
-  "keywords": [
-    "browser",
-    "chrome",
-    "automation"
-  ]
+	"name": "playwriter",
+	"description": "Drive your running Chrome via the Playwriter CLI.",
+	"version": "1.0.0",
+	"author": {
+		"name": "Mary"
+	},
+	"keywords": ["browser", "chrome", "automation"]
 }

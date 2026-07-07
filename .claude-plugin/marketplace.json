@@ -1,34 +1,34 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "mary-skills",
-  "description": "Mary's personal Claude Code skills, packaged as installable plugins for use across devices.",
-  "owner": {
-    "name": "Mary"
-  },
-  "plugins": [
-    {
-      "name": "claude-directives",
-      "description": "Write instructions Claude reads, and keep them secure.",
-      "source": "./plugins/claude-directives",
-      "version": "1.0.0"
-    },
-    {
-      "name": "oracle",
-      "description": "Independent second-opinion advisor.",
-      "source": "./plugins/oracle",
-      "version": "1.0.4"
-    },
-    {
-      "name": "playwriter",
-      "description": "Drive your running Chrome via the Playwriter CLI.",
-      "source": "./plugins/playwriter",
-      "version": "1.0.0"
-    },
-    {
-      "name": "simplify",
-      "description": "Review changed code for reuse, quality, and efficiency.",
-      "source": "./plugins/simplify",
-      "version": "1.0.0"
-    }
-  ]
+	"$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+	"name": "mary-skills",
+	"description": "Mary's personal Claude Code skills, packaged as installable plugins for use across devices.",
+	"owner": {
+		"name": "Mary"
+	},
+	"plugins": [
+		{
+			"name": "claude-directives",
+			"description": "Write instructions Claude reads, and keep them secure.",
+			"source": "./plugins/claude-directives",
+			"version": "1.0.0"
+		},
+		{
+			"name": "oracle",
+			"description": "Independent second-opinion advisor.",
+			"source": "./plugins/oracle",
+			"version": "1.0.4"
+		},
+		{
+			"name": "playwriter",
+			"description": "Drive your running Chrome via the Playwriter CLI.",
+			"source": "./plugins/playwriter",
+			"version": "1.0.0"
+		},
+		{
+			"name": "simplify",
+			"description": "Review changed code for reuse, quality, and efficiency.",
+			"source": "./plugins/simplify",
+			"version": "1.0.0"
+		}
+	]
 }
