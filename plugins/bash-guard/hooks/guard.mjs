@@ -324,14 +324,12 @@ function denyMessage(result) {
 		case 'pipe': {
 			return `Re-run without \`| ${result.name}\`. Claude Code saves long command output to a temporarily file automatically. Alternatively, redirect the command output (\`your-command > /tmp/out.txt\`) and then Read or Grep the file.`;
 		}
+		case 'background':
 		case 'detach': {
-			return `Use Bash(run_in_background: true) instead of using \`| ${result.name}\``;
+			return `Use Bash(run_in_background: true) to run a command in the background`;
 		}
 		case 'kill': {
 			return `Use TaskStop to stop a command you started with Bash(run_in_background: true), or \`kill <pid>\` for any other process`;
-		}
-		case 'background': {
-			return `Use Bash(run_in_background: true) instead of using a trailing '&'`;
 		}
 	}
 }
