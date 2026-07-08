@@ -81,6 +81,21 @@ const CASES = [
 	['(sleep 1 &)', true, 'background inside a subshell'],
 	["bash -c 'sleep 10 &'", true, 'background inside bash -c'],
 
+	// --- blocked: name/pattern-based mass kill (use TaskStop or `kill <pid>`) ---
+	['pkill -f server', true, 'pkill by pattern'],
+	['killall node', true, 'killall by name'],
+	['sudo pkill xyz', true, 'pkill behind a wrapper'],
+	['FOO=1 killall node', true, 'killall behind an assignment'],
+	['cmd && pkill foo', true, 'pkill after &&'],
+	["bash -c 'pkill foo'", true, 'pkill inside bash -c'],
+	['/usr/bin/pkill foo', true, 'absolute path'],
+
+	// --- allowed: precise kill and non-command uses (must not false-positive) ---
+	['kill 1234', false, 'precise kill by pid is the sanctioned alternative'],
+	['kill -9 1234', false, 'precise kill with signal'],
+	['echo pkill', false, 'pkill is an argument, not a command'],
+	["echo 'killall node'", false, 'kill command inside single quotes'],
+
 	// --- allowed: & that is NOT backgrounding (must not false-positive) ---
 	['a && b', false, 'logical AND, not background'],
 	['cmd 2>&1', false, 'fd redirect 2>&1'],

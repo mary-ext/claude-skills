@@ -11,6 +11,11 @@ const BLOCK = new Set(['head', 'tail', 'less', 'more']);
 // `&` below, and plain `nohup cmd` (no `&`) still runs in the foreground.
 const DETACH = new Set(['disown', 'setsid', 'coproc']);
 
+// Name/pattern-based mass-kill commands. They match by process name, so they can
+// hit unrelated processes (other sessions, the harness). Blocked in favor of
+// TaskStop (for background Bash the agent started) or a precise `kill <pid>`.
+const KILL = new Set(['pkill', 'killall']);
+
 // Transparent wrappers to look past when they precede a command, e.g.
 // `... | sudo head` or `sudo setsid cmd`.
 const WRAPPERS = new Set(['sudo', 'command', 'env', 'nice', 'time', 'stdbuf', 'nohup', 'builtin', 'exec']);
@@ -235,6 +240,16 @@ function firstDetach(tokens) {
 	return null;
 }
 
+// Return { kind: "kill", name } for the first name/pattern-based mass-kill command
+// in command position (`pkill`, `killall`), or null.
+function firstKill(tokens) {
+	for (const i of commandStarts(tokens)) {
+		const cmd = resolveCommand(tokens, i);
+		if (cmd && KILL.has(cmd.name)) return { kind: 'kill', name: cmd.name };
+	}
+	return null;
+}
+
 // Return { kind: "background", name: "&" } if a real backgrounding `&` follows a
 // command, or null. A `&` only backgrounds when a command word precedes it in
 // its segment; a redirect target word (after `>`, `>&`, ...) doesn't count.
@@ -298,6 +313,7 @@ function analyze(cmd, depth = 0) {
 	return (
 		firstBlockedPipe(tokens) ||
 		firstDetach(tokens) ||
+		firstKill(tokens) ||
 		firstBackground(tokens) ||
 		firstBlockedShellC(tokens, depth)
 	);
@@ -310,6 +326,9 @@ function denyMessage(result) {
 		}
 		case 'detach': {
 			return `Use Bash(run_in_background: true) instead of using \`| ${result.name}\``;
+		}
+		case 'kill': {
+			return `Use TaskStop to stop a command you started with Bash(run_in_background: true), or \`kill <pid>\` for any other process`;
 		}
 		case 'background': {
 			return `Use Bash(run_in_background: true) instead of using a trailing '&'`;

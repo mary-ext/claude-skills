@@ -8,9 +8,9 @@
 	"plugins": [
 		{
 			"name": "bash-guard",
-			"description": "Block Bash commands that truncate output or detach processes.",
+			"description": "Block Bash commands that truncate output, detach processes, or mass-kill by name.",
 			"source": "./plugins/bash-guard",
-			"version": "1.0.0"
+			"version": "1.1.0"
 		},
 		{
 			"name": "claude-directives",
