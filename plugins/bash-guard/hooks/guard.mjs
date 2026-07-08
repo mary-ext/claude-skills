@@ -322,7 +322,7 @@ function analyze(cmd, depth = 0) {
 function denyMessage(result) {
 	switch (result.kind) {
 		case 'pipe': {
-			return `Re-run without \`| ${result.name}\`. Claude Code saves long command output to a temporarily file automatically. Alternatively, redirect the command output (\`your-command > /tmp/out.txt\`) and then Read or Grep the file.`;
+			return `Drop \`| ${result.name}\` from the command. When the output is long, Claude Code saves the full result to a file and gives you the path that can be Read/Grep from`;
 		}
 		case 'background':
 		case 'detach': {
