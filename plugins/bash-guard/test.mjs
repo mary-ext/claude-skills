@@ -48,13 +48,27 @@ const CASES = [
 	["sudo bash -c 'seq 100 | head'", true, 'shell behind a wrapper'],
 	["FOO=1 bash -c 'cat | head'", true, 'shell behind an assignment'],
 
-	// --- allowed: aggregation / transform tools are intentional ---
+	// --- blocked: filtering pipes hide the surrounding output ---
+	['ps aux | grep node', true, 'grep filters what Claude sees'],
+	['pnpm typecheck 2>&1 | grep -iE "error"', true, 'grep on build output'],
+	['cat f | egrep foo', true, 'egrep alias'],
+	['cat f | fgrep foo', true, 'fgrep alias'],
+	['ls | rg node', true, 'ripgrep as a pipe filter'],
+	['ps aux | sudo grep node', true, 'grep behind a wrapper'],
+	["bash -c 'ps aux | grep node'", true, 'grep inside bash -c'],
+	['cat f | grep a | grep b', true, 'later grep stage still blocked'],
+
+	// --- allowed: pure reshaping tools are intentional ---
 	['git ls-files | wc -l', false, 'wc is aggregation'],
 	["find . -name '*.ts' | wc -l", false, 'wc count'],
-	['ps aux | grep node', false, 'grep is a filter, allowed'],
 	["git diff --name-only | sed 's/^/- /'", false, 'sed transform'],
 	["cat f | awk '{print $1}'", false, 'awk transform'],
 	['cat f | cut -d, -f1', false, 'cut'],
+	['ls | sort | uniq', false, 'sort/uniq reshape without hiding status'],
+
+	// --- allowed: grep as a primary command searches files (not a pipe sink) ---
+	['grep -rn pattern src/', false, 'grep reads files, no pipe'],
+	['rg -n TODO', false, 'ripgrep as a primary command'],
 
 	// --- allowed: no pipe / head not fed by a pipe ---
 	['head -n 5 file.txt', false, 'head reads a file, no pipe'],
@@ -104,7 +118,7 @@ const CASES = [
 	['cmd &>out.txt', false, '&> combined redirect'],
 	['cmd &>>out.txt', false, '&>> combined append redirect'],
 	['nohup cmd', false, 'bare nohup stays in foreground'],
-	['seq 100 |& grep foo', false, '|& to a filter is allowed, not background'],
+	['seq 100 |& wc -l', false, '|& to a filter is allowed, not background'],
 	["echo 'sleep 10 &'", false, 'background & inside single quotes'],
 	['echo "a && b"', false, '&& inside double quotes'],
 	["curl 'http://x/?a=1&b=2'", false, '& inside a quoted URL'],

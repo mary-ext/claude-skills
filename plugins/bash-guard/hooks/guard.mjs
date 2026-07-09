@@ -1,19 +1,12 @@
 #!/usr/bin/env node
 
-// Commands that, when fed by a pipe, truncate or page what Claude sees.
-// Intentional aggregation/transform tools (grep, wc, sed, awk, cut, ...) are
-// deliberately NOT here — those are legitimate summarization, not lost output.
-const BLOCK = new Set(['head', 'tail', 'less', 'more']);
+// Commands that, when fed by a pipe, hide part of what Claude sees.
+const BLOCK = new Set(['head', 'tail', 'less', 'more', 'grep', 'egrep', 'fgrep', 'rg']);
 
-// Commands that detach a process from the harness. The Bash tool has a native
-// `run_in_background` option that should be used instead, so these are blocked.
-// `nohup` is intentionally absent: `nohup cmd &` is caught by the backgrounding
-// `&` below, and plain `nohup cmd` (no `&`) still runs in the foreground.
+// Commands that detach a process from the harness.
 const DETACH = new Set(['disown', 'setsid', 'coproc']);
 
-// Name/pattern-based mass-kill commands. They match by process name, so they can
-// hit unrelated processes (other sessions, the harness). Blocked in favor of
-// TaskStop (for background Bash the agent started) or a precise `kill <pid>`.
+// Commands that mass-kills processes.
 const KILL = new Set(['pkill', 'killall']);
 
 // Transparent wrappers to look past when they precede a command, e.g.
