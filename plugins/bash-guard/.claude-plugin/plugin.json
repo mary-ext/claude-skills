@@ -1,7 +1,7 @@
 {
 	"name": "bash-guard",
 	"description": "Block Bash commands that truncate output, detach processes, or mass-kill by name.",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"author": {
 		"name": "Mary"
 	},

@@ -233,12 +233,21 @@ function firstDetach(tokens) {
 	return null;
 }
 
-// Return { kind: "kill", name } for the first name/pattern-based mass-kill command
-// in command position (`pkill`, `killall`), or null.
+// Return { kind: "kill", name } for the first mass-kill command in command
+// position (`pkill`, `killall`), or a `kill` targeting a jobspec (`%1`) — job
+// control we ban regardless of whether it hits anything — or null.
 function firstKill(tokens) {
 	for (const i of commandStarts(tokens)) {
 		const cmd = resolveCommand(tokens, i);
-		if (cmd && KILL.has(cmd.name)) return { kind: 'kill', name: cmd.name };
+		if (!cmd) continue;
+		if (KILL.has(cmd.name)) return { kind: 'kill', name: cmd.name };
+		if (cmd.name === 'kill') {
+			for (let j = cmd.index + 1; j < tokens.length; j++) {
+				const tk = tokens[j];
+				if (tk.type === 'op') break;
+				if (tk.value.startsWith('%')) return { kind: 'kill', name: 'kill' };
+			}
+		}
 	}
 	return null;
 }
