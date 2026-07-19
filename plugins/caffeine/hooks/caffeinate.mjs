@@ -5,17 +5,11 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 
-// Safety-net lifetime — refreshed on each activity event, so it only bites when
-// a release event never arrives (e.g. a crash).
 const TIMEOUT = Number(process.env.CC_CAFFEINE_TIMEOUT_SECONDS) || 900;
-
-// Events that mean "Claude is idle now" — everything else refreshes.
 const RELEASE = new Set(['Notification', 'Stop', 'SessionEnd', 'SubagentStop']);
-
 const STATE_DIR = join(tmpdir(), 'cc-caffeine');
 
-// Walk up to the long-lived `claude` process: process.ppid is the short-lived
-// shell the hook runs under, not Claude, and we tie the inhibitor to Claude.
+// Walk up from the hook's shell to the long-lived `claude` process.
 function claudePid() {
 	let pid = process.ppid;
 	for (let i = 0; i < 12 && pid > 1; i++) {
@@ -29,17 +23,13 @@ function claudePid() {
 	return null;
 }
 
-// The native inhibitor for this platform. Given ccPid, it also exits the moment
-// Claude's process dies, so a crash releases the lock at once rather than
-// lingering until TIMEOUT.
+// Native inhibitor for this platform, bound to ccPid so it releases when Claude dies.
 function inhibitor(ccPid) {
 	if (platform() === 'darwin') {
 		const args = ['-i', '-t', String(TIMEOUT)];
 		if (ccPid) args.push('-w', String(ccPid));
 		return { cmd: 'caffeinate', args };
 	}
-	// Poll for the pid in portable sh (no bash-only $SECONDS) so the child exits
-	// early if Claude disappears, else falls through to the TIMEOUT bound.
 	const holder = ccPid
 		? `i=0; while [ $i -lt ${TIMEOUT} ]; do kill -0 ${ccPid} 2>/dev/null || exit 0; sleep 5; i=$((i+5)); done`
 		: `sleep ${TIMEOUT}`;
@@ -57,11 +47,35 @@ function inhibitor(ccPid) {
 	};
 }
 
-// Confirm the pid is still one of our inhibitors, so a recycled pid never takes
-// down an unrelated process.
 function isOurs(pid) {
 	const { stdout } = spawnSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' });
 	return /caffeinate|systemd-inhibit/.test(stdout || '');
+}
+
+// Every running inhibitor bound to this Claude pid, so we can reap strays leaked
+// by concurrent events or by earlier sessions in the same Claude process.
+function inhibitorsFor(ccPid) {
+	if (!ccPid) return [];
+	const { stdout } = spawnSync('ps', ['-A', '-o', 'pid=,command='], { encoding: 'utf8' });
+	const match = platform() === 'darwin'
+		? (cmd) => /caffeinate\b/.test(cmd) && new RegExp(`\\s-w\\s+${ccPid}(?:\\s|$)`).test(cmd)
+		: (cmd) => cmd.includes(`kill -0 ${ccPid}`);
+	const pids = [];
+	for (const line of (stdout || '').split('\n')) {
+		const m = line.trim().match(/^(\d+)\s+(.*)$/);
+		if (m && match(m[2])) pids.push(Number(m[1]));
+	}
+	return pids;
+}
+
+function killGroup(pid) {
+	try {
+		process.kill(-pid, 'SIGTERM');
+	} catch {
+		try {
+			process.kill(pid, 'SIGTERM');
+		} catch {}
+	}
 }
 
 function stop(pidFile) {
@@ -69,28 +83,20 @@ function stop(pidFile) {
 	try {
 		pid = Number(readFileSync(pidFile, 'utf8').trim());
 	} catch {
-		return; // no inhibitor recorded
+		return;
 	}
 
-	if (pid > 0 && isOurs(pid)) {
-		try {
-			process.kill(-pid, 'SIGTERM');
-		} catch {
-			try {
-				process.kill(pid, 'SIGTERM');
-			} catch {}
-		}
-	}
+	if (pid > 0 && isOurs(pid)) killGroup(pid);
 
 	try {
 		rmSync(pidFile);
 	} catch {}
 }
 
-function start(pidFile) {
-	const { cmd, args } = inhibitor(claudePid());
+function start(pidFile, ccPid) {
+	const { cmd, args } = inhibitor(ccPid);
 	const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
-	child.on('error', () => {}); // native tool missing → silently no-op
+	child.on('error', () => {});
 	child.unref();
 	if (child.pid) writeFileSync(pidFile, String(child.pid));
 }
@@ -108,15 +114,15 @@ try {
 	mkdirSync(STATE_DIR, { recursive: true });
 
 	const pidFile = join(STATE_DIR, `${key}.pid`);
+	const ccPid = claudePid();
 
-	if (RELEASE.has(payload.hook_event_name)) {
-		stop(pidFile);
-	} else {
-		stop(pidFile); // drop the old inhibitor, then start a fresh one (refresh)
-		start(pidFile);
+	for (const pid of inhibitorsFor(ccPid)) killGroup(pid);
+	stop(pidFile);
+
+	if (!RELEASE.has(payload.hook_event_name)) {
+		start(pidFile, ccPid);
 	}
 } catch {}
 
-// Never block Claude and never print to stdout (UserPromptSubmit stdout would be
-// injected as context).
+// Exit clean and silent: UserPromptSubmit stdout would be injected as context.
 process.exit(0);

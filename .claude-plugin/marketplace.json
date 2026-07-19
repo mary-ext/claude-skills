@@ -16,7 +16,7 @@
 			"name": "caffeine",
 			"description": "Keep the machine awake while Claude is working.",
 			"source": "./plugins/caffeine",
-			"version": "1.0.0"
+			"version": "1.0.1"
 		},
 		{
 			"name": "claude-directives",
