@@ -38,9 +38,9 @@
 		},
 		{
 			"name": "simplify",
-			"description": "Review changed code for reuse, quality, and efficiency.",
+			"description": "Review changed code for reuse, quality, efficiency, and altitude.",
 			"source": "./plugins/simplify",
-			"version": "1.0.0"
+			"version": "2.0.0"
 		}
 	]
 }
