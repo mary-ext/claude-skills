@@ -25,10 +25,14 @@ const CMD_START_OPS = new Set(['|', '||', '|&', '&', '&&', ';', ';;', ';&', ';;&
 // Pipe operators that feed one command's output into the next.
 const PIPE_OPS = new Set(['|', '|&']);
 
-// Redirection operators. Their following word is a target (a filename or fd),
-// not a command — and their `&` (in `>&`, `<&`, `&>`, `&>>`) is fd duplication,
-// never backgrounding.
-const REDIR_OPS = new Set(['<', '<&', '>', '>&', '>>', '>|', '&>', '&>>']);
+// Redirection operators. Their following word is a target (a filename, an fd, a
+// heredoc delimiter, or a here-string) — not a command — and their `&` (in `>&`,
+// `<&`, `&>`, `&>>`) is fd duplication, never backgrounding.
+const REDIR_OPS = new Set(['<', '<&', '<<', '<<-', '<<<', '>', '>&', '>>', '>|', '&>', '&>>']);
+
+// Heredoc operators, whose target word names the terminator of a body that the
+// tokenizer must skip. `<<<` is a here-string (a plain word), not a heredoc.
+const HEREDOC_OPS = new Set(['<<', '<<-']);
 
 // Characters a backslash escapes inside double quotes (others stay literal).
 const DQUOTE_ESCAPES = new Set(['"', '\\', '$', '`']);
@@ -65,9 +69,12 @@ function matchOp(cmd, i) {
 			if (c2 === '|') return { value: '>|', len: 2 };
 			return { value: '>', len: 1 };
 		case '<':
-			// `<<`, `<<<`, `<>` fall through as repeated `<`; heredoc bodies are
-			// out of scope, and none of these affect `&` classification.
+			// `<>` falls through as repeated `<`; it takes a target word like `<`
+			// does, so the distinction never affects classification.
 			if (c2 === '&') return { value: '<&', len: 2 };
+			if (c2 === '<' && c3 === '<') return { value: '<<<', len: 3 };
+			if (c2 === '<' && c3 === '-') return { value: '<<-', len: 3 };
+			if (c2 === '<') return { value: '<<', len: 2 };
 			return { value: '<', len: 1 };
 		case '(':
 		case ')':
@@ -77,16 +84,43 @@ function matchOp(cmd, i) {
 	}
 }
 
+// Skip the bodies of the heredocs opened on the line that just ended. `i` points
+// just past that newline. Each body runs to a line holding only its delimiter
+// (leading tabs stripped when opened with `<<-`); an unterminated body runs to
+// the end of the input. Returns the index to resume tokenizing at.
+function skipHeredocBodies(cmd, i, heredocs) {
+	for (const { delim, stripTabs } of heredocs) {
+		while (i < cmd.length) {
+			let eol = cmd.indexOf('\n', i);
+			if (eol === -1) eol = cmd.length;
+			const line = cmd.slice(i, eol);
+			i = Math.min(eol + 1, cmd.length);
+			if ((stripTabs ? line.replace(/^\t+/, '') : line) === delim) break;
+		}
+	}
+	return i;
+}
+
 // Split a shell command into word/operator tokens, respecting quotes and
 // backslash escapes. Operators are recognized by longest match so each `&`,
-// `|`, `>`, `<`, `;` variant is an unambiguous token.
+// `|`, `>`, `<`, `;` variant is an unambiguous token. Heredoc bodies are data,
+// not commands, so they are skipped rather than tokenized — otherwise a script
+// written with `cat <<EOF ... EOF` would be judged on the text it writes.
 function tokenize(cmd) {
 	const tokens = [];
 	let word = '';
 	// Tracks a pending word even when empty, so `''` emits a real empty token.
 	let hasWord = false;
+	// Heredocs opened on the current line, in the order their bodies follow.
+	let heredocs = [];
+	// Set to `<<`/`<<-` while the next word is that operator's delimiter.
+	let heredocOp = null;
 	const pushWord = () => {
 		if (hasWord) {
+			if (heredocOp) {
+				heredocs.push({ delim: word, stripTabs: heredocOp === '<<-' });
+				heredocOp = null;
+			}
 			tokens.push({ type: 'word', value: word });
 			word = '';
 			hasWord = false;
@@ -155,12 +189,17 @@ function tokenize(cmd) {
 		if (c === ' ' || c === '\t' || c === '\n' || c === '\r') {
 			pushWord();
 			i++;
+			if (c === '\n' && heredocs.length) {
+				i = skipHeredocBodies(cmd, i, heredocs);
+				heredocs = [];
+			}
 			continue;
 		}
 		const op = matchOp(cmd, i);
 		if (op) {
 			pushWord();
 			tokens.push({ type: 'op', value: op.value });
+			if (HEREDOC_OPS.has(op.value)) heredocOp = op.value;
 			i += op.len;
 			continue;
 		}

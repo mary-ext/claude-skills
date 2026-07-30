@@ -81,6 +81,22 @@ const CASES = [
 	['echo "a | head"', false, 'pipe inside double quotes'],
 	["echo bash -c 'x | head'", false, 'bash here is an argument, not a command'],
 
+	// --- allowed: heredoc bodies are data being written, not commands to run ---
+	['cat <<EOF > s.sh\nps aux | grep node\nEOF', false, 'pipe inside a heredoc body'],
+	["cat <<'EOF' > s.sh\nsleep 10 &\nEOF", false, 'quoted delimiter, background in body'],
+	['cat <<-EOF > s.sh\n\tpkill node\n\tEOF', false, '<<- strips leading tabs on the terminator'],
+	['cat <<EOF > a\nls | head\nEOF\ncat <<EOF > b\npkill x\nEOF', false, 'two heredocs in sequence'],
+	['cat <<A <<B\nls | head\nA\nsetsid x\nB', false, 'two heredocs on one line'],
+	["bash -c 'cat <<EOF > s.sh\nps aux | grep node\nEOF'", false, 'heredoc inside bash -c'],
+	['cat <<EOF\nsleep 10 &', false, 'unterminated heredoc body is still data'],
+
+	// --- blocked: the heredoc must not hide the real command line ---
+	['cat <<EOF | head\nbody\nEOF', true, 'pipe on the heredoc line itself'],
+	['cat <<EOF > s.sh &\nbody\nEOF', true, 'backgrounded heredoc command'],
+	['cat <<EOF > s.sh\nbody\nEOF\nps aux | grep node', true, 'real pipe after the body ends'],
+	['grep -c foo <<<"$var"', false, 'here-string takes a word, not a body'],
+	['echo x <<<EOF\nsleep 10 &', true, 'here-string does not swallow the next line'],
+
 	// --- blocked: backgrounding & detaching (use run_in_background instead) ---
 	['sleep 10 &', true, 'trailing background &'],
 	['python server.py &', true, 'background a server'],
