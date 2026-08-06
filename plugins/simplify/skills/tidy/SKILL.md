@@ -115,6 +115,12 @@ in one line what it would take; a restructure that size is the user's call to ma
 
 ## Phase 3: Fix issues
 
+Don't modify any files while the agents are running. Not the files in the diff, not files adjacent to
+them, and not files related to the changes. The agents explore freely: they read the changed files,
+follow imports, inspect siblings in the same directory, and trace call chains. Any file they might
+touch is off-limits until they finish. Editing mid-run corrupts their view of the codebase and makes
+their findings unreliable. If you have nothing unrelated to work on, stop and wait.
+
 Wait for all four agents to complete. Deduplicate findings that point at the same line or mechanism,
 keeping whichever states the cost most concretely. Fix each remaining finding directly.
 
