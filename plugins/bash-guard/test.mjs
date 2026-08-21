@@ -111,6 +111,26 @@ const CASES = [
 	['(sleep 1 &)', true, 'background inside a subshell'],
 	["bash -c 'sleep 10 &'", true, 'background inside bash -c'],
 
+	// --- blocked: sleeping (use Monitor / the completion notification) ---
+	['sleep 300', true, 'bare sleep'],
+	['sleep 300; echo done', true, 'sleep then a command'],
+	['sleep 0.5 && curl localhost:3000', true, 'short sleep before a check'],
+	['until curl -s localhost:3000; do sleep 2; done', true, 'sleep inside an until-loop'],
+	['while ! test -f out; do sleep 5; done', true, 'sleep inside a while-loop'],
+	['for i in 1 2 3; do sleep 1; done', true, 'sleep inside a for-loop'],
+	['if x; then sleep 3; fi', true, 'sleep inside an if branch'],
+	['{ sleep 3; }', true, 'sleep inside a brace group'],
+	['(sleep 3)', true, 'sleep inside a subshell'],
+	['sudo sleep 3', true, 'sleep behind a wrapper'],
+	['/bin/sleep 3', true, 'absolute path'],
+	["bash -c 'sleep 3'", true, 'sleep inside bash -c'],
+
+	// --- allowed: sleep that is not a command (must not false-positive) ---
+	['echo sleep', false, 'sleep is an argument, not a command'],
+	["echo 'sleep 300'", false, 'sleep inside single quotes'],
+	['grep -rn sleep src/', false, 'searching for the word sleep'],
+	['cat <<EOF > s.sh\nsleep 300\nEOF', false, 'sleep inside a heredoc body'],
+
 	// --- blocked: name/pattern-based mass kill (use TaskStop or `kill <pid>`) ---
 	['pkill -f server', true, 'pkill by pattern'],
 	['killall node', true, 'killall by name'],

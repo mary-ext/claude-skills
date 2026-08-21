@@ -9,6 +9,9 @@ const DETACH = new Set(['disown', 'setsid', 'coproc']);
 // Commands that mass-kills processes.
 const KILL = new Set(['pkill', 'killall']);
 
+// Commands that burn wall-clock waiting instead of watching for a condition.
+const WAIT = new Set(['sleep']);
+
 // Transparent wrappers to look past when they precede a command, e.g.
 // `... | sudo head` or `sudo setsid cmd`.
 const WRAPPERS = new Set(['sudo', 'command', 'env', 'nice', 'time', 'stdbuf', 'nohup', 'builtin', 'exec']);
@@ -21,6 +24,11 @@ const SHELLS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash']);
 // (`>`, `>&`, `&>`, ...) are deliberately excluded: they take a target word, they
 // don't begin a new command.
 const CMD_START_OPS = new Set(['|', '||', '|&', '&', '&&', ';', ';;', ';&', ';;&', '(']);
+
+// Reserved words that introduce a command rather than being one, so in command
+// position the word after them starts a new simple command — which is how
+// `while ...; do sleep 5; done` hides a sleep from a command-position scan.
+const KEYWORDS = new Set(['if', 'then', 'elif', 'else', 'while', 'until', 'do', '{', '!']);
 
 // Pipe operators that feed one command's output into the next.
 const PIPE_OPS = new Set(['|', '|&']);
@@ -211,8 +219,10 @@ function tokenize(cmd) {
 	return tokens;
 }
 
-// Yield the token index that starts each simple command: the start of the input
-// and the first token after every command-separating operator.
+// Yield the token index that starts each simple command: the start of the input,
+// the first token after every command-separating operator, and the word after a
+// reserved word in command position. Reserved words only count in command
+// position, so `echo do` keeps treating `do` as the argument it is.
 function* commandStarts(tokens) {
 	let atStart = true;
 	for (let i = 0; i < tokens.length; i++) {
@@ -220,6 +230,7 @@ function* commandStarts(tokens) {
 			atStart = CMD_START_OPS.has(tokens[i].value);
 			continue;
 		}
+		if (atStart && KEYWORDS.has(tokens[i].value)) continue;
 		if (atStart) yield i;
 		atStart = false;
 	}
@@ -291,6 +302,17 @@ function firstKill(tokens) {
 	return null;
 }
 
+// Return { kind: "wait", name } for the first sleep in command position, or
+// null. Every sleep is blocked, foreground or backgrounded: a bare one burns the
+// turn, and one inside a poll loop is Monitor's job.
+function firstWait(tokens) {
+	for (const i of commandStarts(tokens)) {
+		const cmd = resolveCommand(tokens, i);
+		if (cmd && WAIT.has(cmd.name)) return { kind: 'wait', name: cmd.name };
+	}
+	return null;
+}
+
 // Return { kind: "background", name: "&" } if a real backgrounding `&` follows a
 // command, or null. A `&` only backgrounds when a command word precedes it in
 // its segment; a redirect target word (after `>`, `>&`, ...) doesn't count.
@@ -356,6 +378,7 @@ function analyze(cmd, depth = 0) {
 		firstDetach(tokens) ||
 		firstKill(tokens) ||
 		firstBackground(tokens) ||
+		firstWait(tokens) ||
 		firstBlockedShellC(tokens, depth)
 	);
 }
@@ -371,6 +394,9 @@ function denyMessage(result) {
 		}
 		case 'kill': {
 			return `Use TaskStop to stop a command you started with Bash(run_in_background: true), or \`kill <pid>\` for any other process`;
+		}
+		case 'wait': {
+			return `Drop \`${result.name}\`. Claude Code provides much more suitable tools for this purpose`;
 		}
 	}
 }

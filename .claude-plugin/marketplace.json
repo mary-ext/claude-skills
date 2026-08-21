@@ -10,7 +10,7 @@
 			"name": "bash-guard",
 			"description": "Block Bash commands that truncate output, detach processes, or mass-kill by name.",
 			"source": "./plugins/bash-guard",
-			"version": "1.2.3"
+			"version": "1.2.4"
 		},
 		{
 			"name": "caffeine",
