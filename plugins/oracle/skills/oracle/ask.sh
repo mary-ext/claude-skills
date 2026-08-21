@@ -49,7 +49,6 @@ ERRFILE="$TMP_DIR/err.log"
 
 rc=0
 echo "$FULL_PROMPT" | mise exec codex -- codex exec \
-  --full-auto \
   --sandbox read-only \
   --skip-git-repo-check \
   --ephemeral \
