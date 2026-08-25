@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-
-// Corpus test for the bash-guard hook. Feeds each command through the real hook
-// on stdin and asserts the exit code (2 = blocked, 0 = allowed).
-//
-//   node plugins/bash-guard/test.mjs
+// Run with `node plugins/bash-guard/test.mjs`.
 
 import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -12,9 +8,8 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const HOOK = join(HERE, 'hooks', 'guard.mjs');
 
-// [command, shouldBlock, note]
 const CASES = [
-	// --- blocked: truncating pipes ---
+	// Blocked pipes
 	['seq 100 | head', true, 'plain head'],
 	['seq 100 | tail -n 5', true, 'tail'],
 	['cat f | less', true, 'pager less'],
@@ -24,22 +19,19 @@ const CASES = [
 	['seq 100 | /usr/bin/head', true, 'absolute path'],
 	['seq 100 | \\head', true, 'backslash-escaped name'],
 
-	// --- blocked: wrappers and assignments before the command ---
+	// Wrappers and assignments
 	['seq 100 | sudo head', true, 'wrapper sudo'],
 	['seq 100 | sudo -n head', true, 'wrapper with attached-value flag'],
 	['seq 100 | env LC_ALL=C head', true, 'env with assignment'],
 	['seq 100 | FOO=1 head', true, 'leading assignment'],
 
-	// Known limitation: wrapper options that take a SEPARATE-word value
-	// (e.g. `nice -n 5 head`) aren't parsed — the value word looks like the
-	// command and we stop. Grammar-per-wrapper would be needed; not worth it
-	// for a case that essentially never occurs after a pipe.
+	// Separate wrapper option values are not parsed.
 	['seq 100 | nice -n 5 head', false, 'KNOWN LIMITATION: separate-value option'],
 
-	// --- blocked: line continuation ---
+	// Line continuation
 	['seq 100 | \\\nhead', true, 'backslash-newline continuation'],
 
-	// --- blocked: shell -c recursion ---
+	// Shell recursion
 	["bash -c 'seq 100 | head'", true, 'bash -c'],
 	["sh -c 'seq 100 | head'", true, 'sh -c'],
 	["foo && bash -c 'cat x | head'", true, 'bash -c after &&'],
@@ -48,7 +40,7 @@ const CASES = [
 	["sudo bash -c 'seq 100 | head'", true, 'shell behind a wrapper'],
 	["FOO=1 bash -c 'cat | head'", true, 'shell behind an assignment'],
 
-	// --- blocked: filtering pipes hide the surrounding output ---
+	// Filtering pipes
 	['ps aux | grep node', true, 'grep filters what Claude sees'],
 	['pnpm typecheck 2>&1 | grep -iE "error"', true, 'grep on build output'],
 	['cat f | egrep foo', true, 'egrep alias'],
@@ -58,7 +50,7 @@ const CASES = [
 	["bash -c 'ps aux | grep node'", true, 'grep inside bash -c'],
 	['cat f | grep a | grep b', true, 'later grep stage still blocked'],
 
-	// --- allowed: pure reshaping tools are intentional ---
+	// Allowed transforms
 	['git ls-files | wc -l', false, 'wc is aggregation'],
 	["find . -name '*.ts' | wc -l", false, 'wc count'],
 	["git diff --name-only | sed 's/^/- /'", false, 'sed transform'],
@@ -66,22 +58,22 @@ const CASES = [
 	['cat f | cut -d, -f1', false, 'cut'],
 	['ls | sort | uniq', false, 'sort/uniq reshape without hiding status'],
 
-	// --- allowed: grep as a primary command searches files (not a pipe sink) ---
+	// Primary search commands
 	['grep -rn pattern src/', false, 'grep reads files, no pipe'],
 	['rg -n TODO', false, 'ripgrep as a primary command'],
 
-	// --- allowed: no pipe / head not fed by a pipe ---
+	// Commands without pipes
 	['head -n 5 file.txt', false, 'head reads a file, no pipe'],
 	['echo hi', false, 'no pipe'],
 	['cat a || head b', false, '|| is not a pipe'],
 
-	// --- allowed: tokenizer edge cases (must not false-positive) ---
+	// Tokenizer edge cases
 	['echo safe # | head', false, 'pipe is inside a comment'],
 	["echo 'a | head'", false, 'pipe inside single quotes'],
 	['echo "a | head"', false, 'pipe inside double quotes'],
 	["echo bash -c 'x | head'", false, 'bash here is an argument, not a command'],
 
-	// --- allowed: heredoc bodies are data being written, not commands to run ---
+	// Heredoc bodies
 	['cat <<EOF > s.sh\nps aux | grep node\nEOF', false, 'pipe inside a heredoc body'],
 	["cat <<'EOF' > s.sh\nsleep 10 &\nEOF", false, 'quoted delimiter, background in body'],
 	['cat <<-EOF > s.sh\n\tpkill node\n\tEOF', false, '<<- strips leading tabs on the terminator'],
@@ -90,14 +82,14 @@ const CASES = [
 	["bash -c 'cat <<EOF > s.sh\nps aux | grep node\nEOF'", false, 'heredoc inside bash -c'],
 	['cat <<EOF\nsleep 10 &', false, 'unterminated heredoc body is still data'],
 
-	// --- blocked: the heredoc must not hide the real command line ---
+	// Commands around heredocs
 	['cat <<EOF | head\nbody\nEOF', true, 'pipe on the heredoc line itself'],
 	['cat <<EOF > s.sh &\nbody\nEOF', true, 'backgrounded heredoc command'],
 	['cat <<EOF > s.sh\nbody\nEOF\nps aux | grep node', true, 'real pipe after the body ends'],
 	['grep -c foo <<<"$var"', false, 'here-string takes a word, not a body'],
 	['echo x <<<EOF\nsleep 10 &', true, 'here-string does not swallow the next line'],
 
-	// --- blocked: backgrounding & detaching (use run_in_background instead) ---
+	// Backgrounding and detaching
 	['sleep 10 &', true, 'trailing background &'],
 	['python server.py &', true, 'background a server'],
 	['make build > log 2>&1 &', true, 'background with redirects'],
@@ -111,7 +103,7 @@ const CASES = [
 	['(sleep 1 &)', true, 'background inside a subshell'],
 	["bash -c 'sleep 10 &'", true, 'background inside bash -c'],
 
-	// --- blocked: sleeping (use Monitor / the completion notification) ---
+	// Sleep commands
 	['sleep 300', true, 'bare sleep'],
 	['sleep 300; echo done', true, 'sleep then a command'],
 	['sleep 0.5 && curl localhost:3000', true, 'short sleep before a check'],
@@ -125,13 +117,13 @@ const CASES = [
 	['/bin/sleep 3', true, 'absolute path'],
 	["bash -c 'sleep 3'", true, 'sleep inside bash -c'],
 
-	// --- allowed: sleep that is not a command (must not false-positive) ---
+	// Non-command sleep tokens
 	['echo sleep', false, 'sleep is an argument, not a command'],
 	["echo 'sleep 300'", false, 'sleep inside single quotes'],
 	['grep -rn sleep src/', false, 'searching for the word sleep'],
 	['cat <<EOF > s.sh\nsleep 300\nEOF', false, 'sleep inside a heredoc body'],
 
-	// --- blocked: name/pattern-based mass kill (use TaskStop or `kill <pid>`) ---
+	// Mass-kill commands
 	['pkill -f server', true, 'pkill by pattern'],
 	['killall node', true, 'killall by name'],
 	['sudo pkill xyz', true, 'pkill behind a wrapper'],
@@ -140,13 +132,13 @@ const CASES = [
 	["bash -c 'pkill foo'", true, 'pkill inside bash -c'],
 	['/usr/bin/pkill foo', true, 'absolute path'],
 
-	// --- allowed: precise kill and non-command uses (must not false-positive) ---
+	// Precise kills and non-command tokens
 	['kill 1234', false, 'precise kill by pid is the sanctioned alternative'],
 	['kill -9 1234', false, 'precise kill with signal'],
 	['echo pkill', false, 'pkill is an argument, not a command'],
 	["echo 'killall node'", false, 'kill command inside single quotes'],
 
-	// --- allowed: & that is NOT backgrounding (must not false-positive) ---
+	// Non-background ampersands
 	['a && b', false, 'logical AND, not background'],
 	['cmd 2>&1', false, 'fd redirect 2>&1'],
 	['cmd >&2', false, 'fd redirect to stderr'],
