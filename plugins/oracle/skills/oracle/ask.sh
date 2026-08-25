@@ -54,6 +54,8 @@ echo "$FULL_PROMPT" | mise exec codex -- codex exec \
   --ephemeral \
   -c "model_instructions_file=\"${SCRIPT_DIR}/system-prompt.md\"" \
   -c 'model="gpt-5.6-sol"' \
+  -c 'model_context_window=1000000' \
+  -c 'model_auto_compact_token_limit=900000' \
   -c 'model_reasoning_effort="xhigh"' \
   -c 'web_search="live"' \
   -o "$OUTFILE" \
