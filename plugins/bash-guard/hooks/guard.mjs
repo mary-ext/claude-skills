@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const BLOCK = new Set(['head', 'tail', 'less', 'more', 'grep', 'egrep', 'fgrep', 'rg']);
+// const BLOCK = new Set(['head', 'tail', 'less', 'more', 'grep', 'egrep', 'fgrep', 'rg']);
 
 const DETACH = new Set(['disown', 'setsid', 'coproc']);
 
@@ -19,7 +19,7 @@ const CMD_START_OPS = new Set(['|', '||', '|&', '&', '&&', ';', ';;', ';&', ';;&
 // Reserved words that expect a command next.
 const KEYWORDS = new Set(['if', 'then', 'elif', 'else', 'while', 'until', 'do', '{', '!']);
 
-const PIPE_OPS = new Set(['|', '|&']);
+// const PIPE_OPS = new Set(['|', '|&']);
 
 // The word after a redirection is a target, not a command.
 const REDIR_OPS = new Set(['<', '<&', '<<', '<<-', '<<<', '>', '>&', '>>', '>|', '&>', '&>>']);
@@ -222,15 +222,15 @@ function resolveCommand(tokens, start) {
 	return null;
 }
 
-function firstBlockedPipe(tokens) {
-	for (let i = 0; i < tokens.length; i++) {
-		const t = tokens[i];
-		if (t.type !== 'op' || !PIPE_OPS.has(t.value)) continue;
-		const cmd = resolveCommand(tokens, i + 1);
-		if (cmd && BLOCK.has(cmd.name)) return { kind: 'pipe', name: cmd.name };
-	}
-	return null;
-}
+// function firstBlockedPipe(tokens) {
+// 	for (let i = 0; i < tokens.length; i++) {
+// 		const t = tokens[i];
+// 		if (t.type !== 'op' || !PIPE_OPS.has(t.value)) continue;
+// 		const cmd = resolveCommand(tokens, i + 1);
+// 		if (cmd && BLOCK.has(cmd.name)) return { kind: 'pipe', name: cmd.name };
+// 	}
+// 	return null;
+// }
 
 function firstDetach(tokens) {
 	for (const i of commandStarts(tokens)) {
@@ -318,7 +318,7 @@ function analyze(cmd, depth = 0) {
 	if (depth > 5) return null;
 	const tokens = tokenize(cmd);
 	return (
-		firstBlockedPipe(tokens) ||
+		// firstBlockedPipe(tokens) ||
 		firstDetach(tokens) ||
 		firstKill(tokens) ||
 		firstBackground(tokens) ||
@@ -329,9 +329,9 @@ function analyze(cmd, depth = 0) {
 
 function denyMessage(result) {
 	switch (result.kind) {
-		case 'pipe': {
-			return `Drop \`| ${result.name}\` from the command. When the output is long, Claude Code saves the full result to a file that can be read from`;
-		}
+		// case 'pipe': {
+		// 	return `Drop \`| ${result.name}\` from the command. When the output is long, Claude Code saves the full result to a file that can be read from`;
+		// }
 		case 'background':
 		case 'detach': {
 			return `Use Bash(run_in_background: true) to run a command in the background`;
