@@ -22,9 +22,9 @@ the resulting diff as the review scope.
 Use the Agent tool to launch all four agents concurrently in a single message. Pass each agent the
 full diff so it has the complete context, plus one of the four angles below.
 
-Each agent reports findings as `file`, `line`, a one-line `summary`, and the concrete cost — what is
-duplicated, wasted, or made harder to maintain. Naming the cost keeps findings actionable and makes
-false positives easy to spot in Phase 3.
+Each agent should report its findings as `file`, `line`, a one-line `summary`, and the concrete cost
+— what is duplicated, wasted, or made harder to maintain. Naming the cost keeps findings actionable
+and makes false positives easy to spot in Phase 3.
 
 ### Agent 1: Code Reuse Review
 
@@ -115,14 +115,11 @@ in one line what it would take; a restructure that size is the user's call to ma
 
 ## Phase 3: Fix issues
 
-Don't modify any files while the agents are running. Not the files in the diff, not files adjacent
-to them, and not files related to the changes. The agents explore freely: they read the changed
-files, follow imports, inspect siblings in the same directory, and trace call chains. Any file they
-might touch is off-limits until they finish. Editing mid-run corrupts their view of the codebase and
-makes their findings unreliable. If you have nothing unrelated to work on, stop and wait.
+The agents explores freely, avoid modifying any files that agents might touch while it is running.
+If you have nothing unrelated to work on, end your turn and wait for all agents to complete.
 
-Wait for all four agents to complete. Deduplicate findings that point at the same line or mechanism,
-keeping whichever states the cost most concretely. Fix each remaining finding directly.
+Upon all agents completion, deduplicate findings that point at the same line or mechanism, keeping
+whichever states the cost most concretely. Fix each remaining finding directly.
 
 Skip a finding, noting the skip rather than arguing with it, when its fix would:
 
