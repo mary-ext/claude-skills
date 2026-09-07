@@ -29,8 +29,11 @@ function debug(msg) {
 function looksLikeClaude(comm, args) {
 	const argv0 = (args || '').trim().split(/\s+/)[0] || '';
 	const names = [comm, argv0].map((s) => basename(s || ''));
-	return names.includes('claude') || names.includes('claude-code')
-		|| /\/share\/claude\/versions\//.test(`${comm} ${argv0}`);
+	return (
+		names.includes('claude') ||
+		names.includes('claude-code') ||
+		/\/share\/claude\/versions\//.test(`${comm} ${argv0}`)
+	);
 }
 
 // One process snapshot per invocation, shared by every lookup below: a live hook fires
@@ -92,9 +95,10 @@ function isOurs(procs, pid) {
 // another Claude's inhibitor at 50162.
 function inhibitorsFor(procs, ccPid) {
 	if (!ccPid) return [];
-	const match = platform() === 'darwin'
-		? (cmd) => /caffeinate\b/.test(cmd) && new RegExp(`\\s-w\\s+${ccPid}(?:\\s|$)`).test(cmd)
-		: (cmd) => new RegExp(`kill -0 ${ccPid}(?:\\s|$)`).test(cmd);
+	const match =
+		platform() === 'darwin'
+			? (cmd) => /caffeinate\b/.test(cmd) && new RegExp(`\\s-w\\s+${ccPid}(?:\\s|$)`).test(cmd)
+			: (cmd) => new RegExp(`kill -0 ${ccPid}(?:\\s|$)`).test(cmd);
 	const pids = [];
 	for (const [pid, p] of procs) {
 		if (match(p.args)) pids.push(pid);
@@ -173,7 +177,9 @@ try {
 	const procs = snapshot();
 	const ccPid = claudePid(procs);
 	const secs = holdSeconds(payload);
-	debug(`event=${payload.hook_event_name} notif=${payload.notification_type ?? ''} ccPid=${ccPid ?? 'NONE'} hold=${secs}s`);
+	debug(
+		`event=${payload.hook_event_name} notif=${payload.notification_type ?? ''} ccPid=${ccPid ?? 'NONE'} hold=${secs}s`,
+	);
 
 	for (const pid of inhibitorsFor(procs, ccPid)) killGroup(pid);
 	stop(procs, pidFile);
