@@ -1,9 +1,9 @@
 ---
 name: oracle
 description: >
-  An independent advisor you shell out to for a second opinion. Call this before performing or
-  planning any substantive work, when you believe the task is complete, when you believe you are
-  stuck, or when you are considering a change of approach.
+  An independent advisor. Call this before performing or planning any substantive work, when you
+  believe the task is complete, when you believe you are stuck, when you are considering a change of
+  approach, or when you need a second opinion.
 user-invocable: false
 ---
 
@@ -67,7 +67,6 @@ The oracle takes time to reason, run oracle in the background. The oracle's outp
 piped to `head`, `tail` or `grep`.
 
 The oracle explores freely, avoid modifying any files that oracle might touch while it is running.
-
 If you have nothing unrelated to work on, end your turn and wait.
 
 ## Formulating good questions
