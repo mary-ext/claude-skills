@@ -53,10 +53,10 @@ echo "$FULL_PROMPT" | mise exec codex -- codex exec \
   --skip-git-repo-check \
   --ephemeral \
   -c "model_instructions_file=\"${SCRIPT_DIR}/review-system-prompt.md\"" \
-  -c 'model="gpt-5.6-sol"' \
+  -c 'model="gpt-6-astra"' \
   -c 'model_context_window=1000000' \
   -c 'model_auto_compact_token_limit=900000' \
-  -c 'model_reasoning_effort="xhigh"' \
+  -c 'model_reasoning_effort="medium"' \
   -c 'web_search="live"' \
   -o "$OUTFILE" \
   - >/dev/null 2>"$ERRFILE" || rc=$?
