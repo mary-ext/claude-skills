@@ -63,8 +63,8 @@ ${CLAUDE_SKILL_DIR}/review.sh "Focus on race conditions and retry behavior in th
 
 If the task requires orientation first (finding files, seeing what's there), do that first.
 
-The oracle takes time to reason, run oracle in the background. The oracle's output shouldn't be
-piped to `head`, `tail` or `grep`.
+Run oracle in the background, the oracle takes minutes to reason and you should not poll for its
+results. The output shouldn't be piped to `head`, `tail` or `grep`.
 
 The oracle explores freely, avoid modifying any files that oracle might touch while it is running.
 If you have nothing unrelated to work on, end your turn and wait.
