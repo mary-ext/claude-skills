@@ -64,11 +64,12 @@ ${CLAUDE_SKILL_DIR}/review.sh "Focus on race conditions and retry behavior in th
 If the task requires orientation first (finding files, seeing what's there), do that first.
 
 Run oracle in the background and do not pipe it to `head`, `tail` or `grep`. The oracle takes
-minutes to reason and the answer is not streamed, do not continuously poll its output or use
-TaskOutput/Monitor while it is still ongoing.
+minutes to reason and the answer is not streamed, do not continuously poll, use Monitor or call
+TaskOutput on it while it is still ongoing.
 
 The oracle explores freely, avoid modifying any files that oracle might touch while it is running.
-If you have nothing unrelated to work on, end your turn and wait.
+
+If you have nothing unrelated to work on, end your turn and wait. Calling `sleep` is pointless.
 
 ## Formulating good questions
 
