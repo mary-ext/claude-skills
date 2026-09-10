@@ -68,7 +68,8 @@ Run oracle in the background and do not pipe it to `head`, `tail` or `grep`.
 The oracle explores freely, avoid modifying any files that oracle might touch while it is running.
 
 The oracle takes minutes to reason and the answer is not streamed. If you have nothing unrelated to
-work on, either call TaskOutput(block: true) or end your turn and wait.
+work on, either call TaskOutput(block: true) or end your turn and wait for the completion
+notification.
 
 ## Formulating good questions
 
