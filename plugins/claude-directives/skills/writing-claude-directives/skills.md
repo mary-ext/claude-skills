@@ -20,8 +20,11 @@ description: I help with async testing
 description: Use when tests have race conditions or timing dependencies — replaces arbitrary timeouts with condition polling
 ```
 
-If a skill covers multiple triggers (e.g., merged across formats), list them explicitly so any of
-them surfaces it.
+Name each distinct trigger; group synonymous requests under one category. Descriptions load on every
+request, so keep them short.
+
+Strengthen a description's wording when tests show missed triggers. In the body, explain the rules
+and their reasons.
 
 ## Naming
 
@@ -99,23 +102,17 @@ Don't create for:
 
 ## Testing
 
-Skills are best tested with the RED-GREEN-REFACTOR cycle in [SKILL.md](SKILL.md). For discipline
-skills specifically, use **combined pressures** (time + sunk cost + exhaustion) — a skill that holds
-under one stressor often fails under two.
+Use the baseline → add → remove cycle in [SKILL.md](SKILL.md). For discipline skills, test combined
+pressures (time + sunk cost + exhaustion), not just each in isolation.
 
-Common rationalizations to anticipate and block:
+Test triggering and application even for simple skills. For reference skills, test retrieval.
 
-| Excuse                | Reality                               |
-| --------------------- | ------------------------------------- |
-| "Obviously clear"     | Clear to you ≠ clear to agents. Test. |
-| "Just a reference"    | References have gaps. Test retrieval. |
-| "Testing is overkill" | Untested skills have issues. Always.  |
-| "Too simple"          | Simple things break. Test anyway.     |
+Test rules from failed sessions against other scenarios to check whether they generalize.
 
 ## Checklist
 
 - [ ] Name uses gerund or action/insight; letters, numbers, hyphens only
 - [ ] Description starts with "Use when…", third person, specific triggers
-- [ ] One excellent example, not a catalog (no `example-js.js` + `example-py.py`)
+- [ ] Examples use one language; varied and labeled illustrative unless a fixed format is required
 - [ ] Directory contains only what's needed (no premature reference files)
-- [ ] Tested with a pressure scenario (RED-GREEN-REFACTOR)
+- [ ] Tested against a baseline, including rule removals

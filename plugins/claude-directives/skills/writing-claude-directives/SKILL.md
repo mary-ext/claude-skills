@@ -1,9 +1,9 @@
 ---
 name: writing-claude-directives
 description:
-  Use when writing or revising any instruction Claude will read - skills, CLAUDE.md files, agent
-  prompts, system prompts, hook output. Covers token efficiency, compliance techniques, discovery,
-  and per-format templates.
+  Use when writing any instruction Claude will read - skills, CLAUDE.md files, agent prompts, system
+  prompts, tool descriptions, hook output. Covers token efficiency, compliance techniques,
+  discovery, and per-format templates.
 ---
 
 # Writing Claude Directives
@@ -19,11 +19,11 @@ When the directive will involve shell commands, env vars, credentials, or git, a
 
 ## Core Principles
 
-**1. Claude is smart. Only write what it doesn't already know.** Challenge each line — does this
-justify its token cost?
+**1. Supply missing context.** Include the audience, environment, quality requirements, and reasons
+for constraints. Omit defaults ("be accurate and thorough") and instructions for behavior Claude
+already performs reliably.
 
-**2. Positive > negative framing.** "Don't do X" triggers thinking about X (pink-elephant problem).
-Say what TO do.
+**2. Use positive instructions.** Say what to do; naming an unwanted behavior can encourage it.
 
 ```markdown
 # Bad — triggers the behavior
@@ -34,6 +34,10 @@ Don't create duplicate files.
 
 Update existing files in place.
 ```
+
+Keep prohibitions for policy, safety, data constraints, or reproducible failures, and explain why.
+Replace style prohibitions ("don't start with 'Certainly'") with the desired behavior ("start with
+the answer").
 
 **3. Context motivates compliance.** Explain WHY, not just WHAT. Claude generalizes from motivation.
 
@@ -47,14 +51,12 @@ NEVER use ellipses.
 Your response will be read aloud by a TTS engine, which can't pronounce ellipses. Don't use them.
 ```
 
-**4. Placement matters.** Instructions at prompt start and end receive higher attention. Critical
-rules go at the boundaries.
+**4. State rules once, where they apply.** Excessive emphasis can cause over-triggering; hedges
+("try to", "if possible") make requirements optional. A short closing recap is fine, but repeated
+variants can conflict.
 
-**5. ~150 instruction limit.** More instructions = uniform degradation across ALL rules. Prune
-ruthlessly.
-
-**6. Repetition enforces critical rules.** For high-stakes requirements, repeat with different
-framings.
+**5. Remove obsolete rules.** Cut redundant instructions and stale workarounds before shortening
+context the task needs.
 
 ## Token Efficiency
 
@@ -66,8 +68,7 @@ framings.
 
 ## Compliance Techniques
 
-Claude 4.x is highly responsive to instructions. Lead with context and motivation; reserve
-imperatives for true boundaries.
+Lead with context and motivation; reserve imperatives for true boundaries.
 
 ### Primary: Context + Motivation
 
@@ -82,30 +83,35 @@ Run tests before committing. Untested commits break CI for the whole team and bl
 from merging.
 ```
 
-### Secondary: Structural Enforcement
+### Enforce in Code Where Possible
+
+Enforce checkable rules with hooks, permissions, schemas, validators, or tests. Use prose to explain
+the reason.
+
+### Structural Enforcement
 
 Make compliance the path of least resistance.
 
-| Pattern                                | Example                                 |
-| -------------------------------------- | --------------------------------------- |
-| Workflow steps                         | Numbered steps with verification gates  |
-| Task tracking (TaskCreate / TodoWrite) | Checklists without tracking get skipped |
-| Forced commitment                      | "Announce: I'm using [skill]"           |
-| Explicit blocking                      | "If X happens, stop and do Y instead"   |
+| Pattern                                | Example                                  |
+| -------------------------------------- | ---------------------------------------- |
+| Verification gates                     | "Proceed only when the validator passes" |
+| Task tracking (TaskCreate / TodoWrite) | Checklists without tracking get skipped  |
+| Forced commitment                      | "Announce: I'm using [skill]"            |
+| Explicit blocking                      | "If X happens, stop and do Y instead"    |
 
-### Escalation: Imperatives — Sparingly
+### Emphasis
 
-For Claude 4.x, aggressive language ("YOU MUST", "CRITICAL") can cause overtriggering. Reserve for
-true boundaries:
+Use emphasis ("YOU MUST", "CRITICAL") only when testing shows an instruction is being missed. Apply
+it to that instruction; broad emphasis can cause over-triggering.
 
 ```markdown
-# Often sufficient
+# Default
 
 Use this tool when searching for files.
 
-# Reserve imperatives for hard boundaries
+# Hard boundary, with its reason
 
-Never commit secrets to version control.
+Never commit secrets to version control; deleting the file leaves them in the history.
 ```
 
 ### By Directive Type
@@ -118,42 +124,25 @@ Never commit secrets to version control.
 
 ## Structure Patterns
 
-### XML for Multi-Part Directives
+### Prose for Behavior, Structure for Data
 
-Claude parses XML effectively — use it for multi-part directives:
-
-```xml
-<task>What to accomplish</task>
-<constraints>Hard requirements</constraints>
-<output_format>Expected structure</output_format>
-<examples>Input/output pairs</examples>
-```
-
-XML also works as a format indicator:
+Use prose to explain rules, reasons, and priorities. Use tables and lists for reference data, and
+XML tags to separate documents, examples, and user content:
 
 ```xml
-<smoothly_flowing_prose>Write report sections here</smoothly_flowing_prose>
-<structured_data>JSON or tables here</structured_data>
+<document>...</document>
+<example>...</example>
 ```
-
-XML outperforms markdown, JSON, and YAML for rule preservation in long prompts.
 
 ### Match Prompt Style to Desired Output
 
 The formatting style in your prompt influences Claude's response. Include markdown if you want
 markdown output; remove it for plain text.
 
-### Workflows and Feedback Loops
+### Goals and Verification
 
-Break complex tasks into checkable steps:
-
-```markdown
-- [ ] Step 1: Analyze inputs
-- [ ] Step 2: Generate plan
-- [ ] Step 3: Validate plan
-- [ ] Step 4: Execute
-- [ ] Step 5: Verify output
-```
+For judgment tasks, state the outcome, constraints, and verification criteria. Let Claude plan the
+work. Number steps where order matters.
 
 Validate → fix → repeat:
 
@@ -174,51 +163,47 @@ Match specificity to fragility.
 | Preferred patterns | Medium  | Templates with parameters       |
 | Context-dependent  | High    | Principles and heuristics       |
 
-### Action Bias Templates
+### Examples
 
-```xml
-<default_to_action>
-By default, implement changes rather than only suggesting them. If the user's intent is unclear, infer the most useful likely action and proceed, using tools to discover any missing details instead of guessing.
-</default_to_action>
-```
+Claude may copy an example's length, tone, and structure. Use varied examples labeled illustrative
+unless the output requires a fixed format. Omit examples for behavior Claude already handles.
 
-```xml
-<do_not_act_before_instructions>
-Do not jump into implementation or change files unless clearly instructed. When the user's intent is ambiguous, default to providing information, doing research, and providing recommendations rather than taking action. Only proceed with edits when the user explicitly requests them.
-</do_not_act_before_instructions>
-```
+### Scope and Autonomy
 
-### Overengineering Prevention
-
-Claude 4.x tends to overengineer. Drop this in when needed:
+Choose a default and explain why. Illustrative examples:
 
 ```markdown
-Avoid over-engineering. Only make changes that are directly requested or clearly necessary. Keep
-solutions simple and focused.
-
-Don't add features, refactor code, or make "improvements" beyond what was asked. A bug fix doesn't
-need surrounding code cleaned up. A simple feature doesn't need extra configurability.
-
-Don't add error handling, fallbacks, or validation for scenarios that can't happen. Trust internal
-code and framework guarantees. Only validate at system boundaries (user input, external APIs).
-
-Don't create helpers, utilities, or abstractions for one-time operations. Don't design for
-hypothetical future requirements. Reuse existing abstractions where possible.
+Implement requested changes; the user reviews the diff.
 ```
 
-## Testing Directives (RED-GREEN-REFACTOR)
+```markdown
+Research and recommend, but change files only when asked; this repo is shared and edits need review.
+```
 
-Writing directives is TDD applied to process documentation: write the failing test first, then the
-directive, then close loopholes.
+```markdown
+Keep changes scoped to the task to simplify review.
+```
 
-**RED — baseline:** run a pressure scenario WITHOUT the directive (combine pressures: time + sunk
-cost + exhaustion). Document violations and rationalizations verbatim.
+### Tool Descriptions
 
-**GREEN — minimal directive:** address the specific baseline failures. Re-run scenarios WITH the
-directive. Verify compliance.
+Describe the tool's behavior, use cases, exclusions, parameters, limits, and return values. Put
+worked examples and follow-up instructions in a skill. Avoid blanket directives ("ALWAYS use this").
+Keep tool names out of system prompts that must work with different tool sets.
 
-**REFACTOR — close loopholes:** find new rationalizations that emerge under the directive. Add
-explicit counters. Re-test until bulletproof.
+## Testing Directives
+
+Test behavior with and without the directive. Asking Claude whether it needs a rule is not a test.
+
+**Baseline:** run a realistic scenario without the directive. For discipline directives, combine
+pressures (time + sunk cost + exhaustion). Record violations and rationalizations verbatim.
+
+**Add:** write the minimal directive that addresses the baseline failures. Re-run with it and verify
+compliance.
+
+**Remove:** remove one rule at a time and check whether the failure it prevented recurs. If it does,
+restore the simplest effective wording.
+
+Address new rationalizations by clarifying the principle before adding exceptions.
 
 | Type       | Test approach                          | Success criterion                    |
 | ---------- | -------------------------------------- | ------------------------------------ |
@@ -227,58 +212,60 @@ explicit counters. Re-test until bulletproof.
 | Pattern    | Recognition + counter-examples         | Knows when/how AND when NOT to apply |
 | Reference  | Retrieval + application tests          | Finds and correctly uses information |
 
-## Anti-Rationalization
+## Anticipating Rationalizations
 
-For discipline-enforcing directives, anticipate excuses:
+For discipline directives, address rationalizations observed in baseline testing. Illustrative
+examples:
 
 ```markdown
-## Red Flags — STOP
+## Rationalizations
 
-If you find yourself reasoning any of these, you're rationalizing:
-
-- "This is simple enough to skip"
-- "I already tested manually"
-- "The spirit not the letter"
-- "This case is different"
-
-All mean: follow the process.
+- "This is simple enough to skip" — small changes can still break CI.
+- "I already tested manually" — manual runs don't cover the suites CI runs.
+- "This case is different" — if it is, say why to the user instead of skipping silently.
 ```
 
 ## Common Mistakes
 
-| Mistake                                                    | Fix                                                   |
-| ---------------------------------------------------------- | ----------------------------------------------------- |
-| Verbose explanations                                       | Claude knows the basics — omit                        |
-| Multiple valid approaches                                  | Pick one default, escape hatch for edge cases         |
-| Vague triggers                                             | Specific symptoms: "tests flaky", "race condition"    |
-| Deeply nested references                                   | Keep one level deep from main file                    |
-| Windows paths                                              | Always forward slashes                                |
-| Aggressive language for 4.x                                | Lead with context, reserve imperatives for boundaries |
-| Narrative examples ("In session 2025-10-03 we found...")   | Too specific, not reusable                            |
-| Multi-language dilution (`example-js.js`, `example-py.py`) | Pick one language, do it well                         |
-| Code in flowcharts                                         | Can't copy-paste; use code blocks                     |
-| Generic labels (`helper1`, `step3`)                        | Use semantic names                                    |
+| Mistake                                                    | Fix                                                               |
+| ---------------------------------------------------------- | ----------------------------------------------------------------- |
+| Verbose explanations                                       | Claude knows the basics — omit                                    |
+| Multiple valid approaches                                  | Pick one default, escape hatch for edge cases                     |
+| Vague triggers                                             | Specific symptoms: "tests flaky", "race condition"                |
+| Deeply nested references                                   | Keep one level deep from main file                                |
+| Windows paths                                              | Always forward slashes                                            |
+| Aggressive language                                        | Lead with context, reserve imperatives for boundaries             |
+| Hedged requirements ("try to include a summary")           | State it plainly: "Include a summary."                            |
+| Trait claims ("you tend to over-explain")                  | State the desired behavior                                        |
+| Narrative examples ("In session 2025-10-03 we found...")   | State the current rule; drop the history                          |
+| Relative phrasing ("X now works differently", "no longer") | Describe current behavior                                         |
+| Model-specific workarounds                                 | Record the affected model and failure; retest after model changes |
+| Numeric output caps ("at most 50 words")                   | Qualitative guidance: "the length the question needs"             |
+| "Don't narrate" / "no interim updates"                     | Say when user-facing updates are wanted                           |
+| Blanket "never use bullets/headers"                        | Say when formatting is appropriate                                |
+| Describing the grader ("you will be graded on...")         | State every requirement directly                                  |
+| Strategy tips ("it's usually best to...")                  | Delete unless it changes what is allowed or how success is judged |
+| Multi-language dilution (`example-js.js`, `example-py.py`) | Pick one language, do it well                                     |
+| Code in flowcharts                                         | Can't copy-paste; use code blocks                                 |
+| Generic labels (`helper1`, `step3`)                        | Use semantic names                                                |
 
-## Model-Specific Notes
+## Keeping Directives Current
 
-**Opus 4.5 — "think" sensitivity:** when extended thinking is disabled, Opus 4.5 is sensitive to the
-word "think" and variants. Replace with:
-
-- "consider" instead of "think about"
-- "evaluate" instead of "think through"
-- "determine" instead of "think whether"
+Record which model and failure each workaround addresses. After a model change, review directives
+with `/claude-api prompt-audit` and retest the workarounds.
 
 ## Checklist
 
 Before publishing any directive:
 
-- [ ] No content Claude already knows (no token waste)
-- [ ] Positive framing throughout
+- [ ] Necessary context included; redundant instructions removed
+- [ ] Positive framing; remaining prohibitions carry a reason
 - [ ] WHY explained for non-obvious rules
-- [ ] Imperatives reserved for true boundaries
+- [ ] Each rule stated once, without hedges; emphasis only where testing showed it's needed
+- [ ] Rules enforceable in code are enforced there
 - [ ] Under the size budget for its format
 - [ ] If credentials/shell/git involved: also applied `prompt-security-hardening`
-- [ ] Tested: ran a baseline scenario without it, then with it, and closed the loopholes
+- [ ] Tested with and without the directive, including rule removals
 
 For skills, also see [skills.md](skills.md). For CLAUDE.md, also see
 [claude-md-files.md](claude-md-files.md).
