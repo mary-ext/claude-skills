@@ -1,4 +1,8 @@
-#!/usr/bin/env node
+type Token = { type: 'word' | 'op'; value: string };
+type Heredoc = { delim: string; stripTabs: boolean };
+type Blocked =
+	// | { kind: 'pipe'; name: string }
+	{ kind: 'detach' | 'kill' | 'wait'; name: string } | { kind: 'background' };
 
 // const BLOCK = new Set(['head', 'tail', 'less', 'more', 'grep', 'egrep', 'fgrep', 'rg']);
 
@@ -30,11 +34,11 @@ const HEREDOC_OPS = new Set(['<<', '<<-']);
 // Other backslashes inside double quotes remain literal.
 const DQUOTE_ESCAPES = new Set(['"', '\\', '$', '`']);
 
-const basename = (w) => (w.includes('/') ? w.slice(w.lastIndexOf('/') + 1) : w);
-const isAssignment = (w) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(w);
+const basename = (w: string) => (w.includes('/') ? w.slice(w.lastIndexOf('/') + 1) : w);
+const isAssignment = (w: string) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(w);
 
 // Match the longest operator at `cmd[i]`.
-function matchOp(cmd, i) {
+function matchOp(cmd: string, i: number): { value: string; len: number } | null {
 	const c = cmd[i];
 	const c2 = cmd[i + 1];
 	const c3 = cmd[i + 2];
@@ -74,7 +78,7 @@ function matchOp(cmd, i) {
 }
 
 // Skip pending heredoc bodies after a newline.
-function skipHeredocBodies(cmd, i, heredocs) {
+function skipHeredocBodies(cmd: string, i: number, heredocs: Heredoc[]): number {
 	for (const { delim, stripTabs } of heredocs) {
 		while (i < cmd.length) {
 			let eol = cmd.indexOf('\n', i);
@@ -88,13 +92,13 @@ function skipHeredocBodies(cmd, i, heredocs) {
 }
 
 // Tokenize shell words and operators, skipping heredoc bodies.
-function tokenize(cmd) {
-	const tokens = [];
+function tokenize(cmd: string): Token[] {
+	const tokens: Token[] = [];
 	let word = '';
 	// Preserve empty quoted words.
 	let hasWord = false;
-	let heredocs = [];
-	let heredocOp = null;
+	let heredocs: Heredoc[] = [];
+	let heredocOp: string | null = null;
 	const pushWord = () => {
 		if (hasWord) {
 			if (heredocOp) {
@@ -126,7 +130,7 @@ function tokenize(cmd) {
 			i++;
 			while (i < n && cmd[i] !== '"') {
 				if (cmd[i] === '\\' && i + 1 < n) {
-					const next = cmd[i + 1];
+					const next = cmd[i + 1]!;
 					if (next === '\n') {
 						i += 2;
 					} else if (DQUOTE_ESCAPES.has(next)) {
@@ -188,24 +192,25 @@ function tokenize(cmd) {
 }
 
 // Yield each simple command's starting token.
-function* commandStarts(tokens) {
+function* commandStarts(tokens: Token[]): Generator<number> {
 	let atStart = true;
 	for (let i = 0; i < tokens.length; i++) {
-		if (tokens[i].type === 'op') {
-			atStart = CMD_START_OPS.has(tokens[i].value);
+		const tk = tokens[i]!;
+		if (tk.type === 'op') {
+			atStart = CMD_START_OPS.has(tk.value);
 			continue;
 		}
-		if (atStart && KEYWORDS.has(tokens[i].value)) continue;
+		if (atStart && KEYWORDS.has(tk.value)) continue;
 		if (atStart) yield i;
 		atStart = false;
 	}
 }
 
 // Resolve a command past assignments and wrappers.
-function resolveCommand(tokens, start) {
+function resolveCommand(tokens: Token[], start: number): { name: string; index: number } | null {
 	let inWrapper = false;
 	for (let j = start; j < tokens.length; j++) {
-		const tk = tokens[j];
+		const tk = tokens[j]!;
 		if (tk.type === 'op') {
 			if (tk.value === '(') continue;
 			return null;
@@ -232,7 +237,7 @@ function resolveCommand(tokens, start) {
 // 	return null;
 // }
 
-function firstDetach(tokens) {
+function firstDetach(tokens: Token[]): Blocked | null {
 	for (const i of commandStarts(tokens)) {
 		const cmd = resolveCommand(tokens, i);
 		if (cmd && DETACH.has(cmd.name)) return { kind: 'detach', name: cmd.name };
@@ -241,14 +246,14 @@ function firstDetach(tokens) {
 }
 
 // Block mass-kill commands and `kill` jobspecs.
-function firstKill(tokens) {
+function firstKill(tokens: Token[]): Blocked | null {
 	for (const i of commandStarts(tokens)) {
 		const cmd = resolveCommand(tokens, i);
 		if (!cmd) continue;
 		if (KILL.has(cmd.name)) return { kind: 'kill', name: cmd.name };
 		if (cmd.name === 'kill') {
 			for (let j = cmd.index + 1; j < tokens.length; j++) {
-				const tk = tokens[j];
+				const tk = tokens[j]!;
 				if (tk.type === 'op') break;
 				if (tk.value.startsWith('%')) return { kind: 'kill', name: 'kill' };
 			}
@@ -257,7 +262,7 @@ function firstKill(tokens) {
 	return null;
 }
 
-function firstWait(tokens) {
+function firstWait(tokens: Token[]): Blocked | null {
 	for (const i of commandStarts(tokens)) {
 		const cmd = resolveCommand(tokens, i);
 		if (cmd && WAIT.has(cmd.name)) return { kind: 'wait', name: cmd.name };
@@ -266,7 +271,7 @@ function firstWait(tokens) {
 }
 
 // Find `&` after a command, excluding redirection syntax.
-function firstBackground(tokens) {
+function firstBackground(tokens: Token[]): Blocked | null {
 	let sawCmdWord = false;
 	let expectRedirTarget = false;
 	for (const t of tokens) {
@@ -297,24 +302,26 @@ function firstBackground(tokens) {
 }
 
 // Inspect `<shell> -c <string>` recursively.
-function firstBlockedShellC(tokens, depth) {
+function firstBlockedShellC(tokens: Token[], depth: number): Blocked | null {
 	for (const i of commandStarts(tokens)) {
 		const cmd = resolveCommand(tokens, i);
 		if (!cmd || !SHELLS.has(cmd.name)) continue;
 		for (let j = cmd.index + 1; j < tokens.length; j++) {
-			const tk = tokens[j];
+			const tk = tokens[j]!;
 			if (tk.type === 'op') break;
 			if (tk.value !== '-c' && !/^-[A-Za-z]*c$/.test(tk.value)) continue;
 			const arg = tokens[j + 1];
 			if (arg?.type !== 'word') continue;
-			const nested = analyze(arg.value, depth + 1);
+			const nested = analyzeAt(arg.value, depth + 1);
 			if (nested) return nested;
 		}
 	}
 	return null;
 }
 
-function analyze(cmd, depth = 0) {
+export const analyze = (cmd: string) => analyzeAt(cmd, 0);
+
+function analyzeAt(cmd: string, depth: number): Blocked | null {
 	if (depth > 5) return null;
 	const tokens = tokenize(cmd);
 	return (
@@ -327,7 +334,7 @@ function analyze(cmd, depth = 0) {
 	);
 }
 
-function denyMessage(result) {
+export function denyMessage(result: Blocked): string {
 	switch (result.kind) {
 		// case 'pipe': {
 		// 	return `Drop \`| ${result.name}\` from the command. When the output is long, Claude Code saves the full result to a file that can be read from`;
@@ -344,26 +351,3 @@ function denyMessage(result) {
 		}
 	}
 }
-
-async function readStdin() {
-	let data = '';
-	for await (const chunk of process.stdin) data += chunk;
-	return data;
-}
-
-const raw = await readStdin();
-let payload;
-try {
-	payload = JSON.parse(raw || '{}');
-} catch {
-	process.exit(0);
-}
-
-const command = payload?.tool_input?.command;
-if (typeof command !== 'string' || !command.trim()) process.exit(0);
-
-const blocked = analyze(command);
-if (!blocked) process.exit(0);
-
-process.stderr.write(denyMessage(blocked));
-process.exit(2);

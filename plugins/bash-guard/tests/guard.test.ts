@@ -1,14 +1,6 @@
-#!/usr/bin/env node
-// Run with `node plugins/bash-guard/test.mjs`.
+import { describe, expect, test } from 'claude-code/testing';
 
-import { spawn } from 'node:child_process';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const HOOK = join(HERE, 'hooks', 'guard.mjs');
-
-const CASES = [
+const CASES: [command: string, shouldBlock: boolean, note: string][] = [
 	// Blocked pipes
 	// ['seq 100 | head', true, 'plain head'],
 	// ['seq 100 | tail -n 5', true, 'tail'],
@@ -152,29 +144,16 @@ const CASES = [
 	["curl 'http://x/?a=1&b=2'", false, '& inside a quoted URL'],
 ];
 
-function run(command) {
-	return new Promise((resolve) => {
-		const child = spawn('node', [HOOK], { stdio: ['pipe', 'ignore', 'ignore'] });
-		child.on('close', (code) => resolve(code));
-		child.stdin.end(JSON.stringify({ tool_input: { command } }));
-	});
-}
-
-let failed = 0;
-for (const [command, shouldBlock, note] of CASES) {
-	const code = await run(command);
-	const blocked = code === 2;
-	const ok = blocked === shouldBlock;
-	if (!ok) {
-		failed++;
-		const want = shouldBlock ? 'BLOCK' : 'ALLOW';
-		const got = blocked ? 'BLOCK' : 'ALLOW';
-		console.log(`FAIL  want ${want} got ${got}  ${JSON.stringify(command)}  (${note})`);
+describe('bash-guard', () => {
+	for (const [command, shouldBlock, note] of CASES) {
+		test(`${shouldBlock ? 'blocks' : 'allows'} ${note}: ${JSON.stringify(command)}`, async ($, on) => {
+			// Stands in for the engine: a command that gets here ran.
+			on('tool.call', { tool: 'Bash' }, () => ({
+				result: { stdout: 'ran', stderr: '', interrupted: false },
+			}));
+			const ran = await $.tool.call({ tool: 'Bash', command });
+			if (shouldBlock) expect(ran.deny).toBeDefined();
+			else expect(ran.deny).toBeUndefined();
+		});
 	}
-}
-
-if (failed) {
-	console.log(`\n${failed}/${CASES.length} failed`);
-	process.exit(1);
-}
-console.log(`All ${CASES.length} cases passed`);
+});
